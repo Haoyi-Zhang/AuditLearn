@@ -1,0 +1,15 @@
+{
+  "status": "FAIL",
+  "manifest_files": 64,
+  "classes": [
+    "check",
+    "misc",
+    "pilot",
+    "scale",
+    "stress",
+    "verify"
+  ],
+  "errors": [
+    "missing campaign classes: offgrid"
+  ]
+}

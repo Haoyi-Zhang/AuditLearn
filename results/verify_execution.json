@@ -1,0 +1,8 @@
+{
+  "cpu_seconds": 0.812720507,
+  "peak_rss_kib": 94888,
+  "reconciled_runs": 252,
+  "status": "passed",
+  "wall_seconds": 0.8127856000000406,
+  "workers": 1
+}

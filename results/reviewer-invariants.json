@@ -1,0 +1,19 @@
+{
+  "results": "final-results",
+  "checks": [
+    {
+      "name": "finite_numeric_outputs",
+      "executed": true,
+      "passed": true,
+      "details": []
+    },
+    {
+      "name": "episode_level_cross_method_invariants",
+      "executed": false,
+      "passed": false,
+      "reason": "no method/time CSV found"
+    }
+  ],
+  "errors": [],
+  "status": "PASS"
+}
