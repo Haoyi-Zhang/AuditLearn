@@ -163,21 +163,54 @@ def check():
     # unresolved fraction is sum_{s=1}^{n-1} min(U,s)/s.
     saturated_envelope_checks = 0
     for U in range(17):
-        for n in range(1, 513):
+        for n in range(0, 513):
             direct = sum((F(min(U, s), s) for s in range(1, n)), F(0))
-            if U == 0:
+            if n <= 1 or U == 0:
                 closed = F(0)
-            elif n - 1 <= U:
+            elif U >= n - 1:
                 closed = F(n - 1)
             else:
                 closed = F(U) + U * sum((F(1, s) for s in range(U + 1, n)), F(0))
             assert direct == closed
             saturated_envelope_checks += 1
+    envelope_boundary_regressions = {
+        "n0": sum((F(min(4, s), s) for s in range(1, 0)), F(0)),
+        "n1": sum((F(min(4, s), s) for s in range(1, 1)), F(0)),
+        "u0_n9": sum((F(min(0, s), s) for s in range(1, 9)), F(0)),
+        "u_ge_n": sum((F(min(12, s), s) for s in range(1, 9)), F(0)),
+    }
+    assert envelope_boundary_regressions == {
+        "n0": F(0), "n1": F(0), "u0_n9": F(0), "u_ge_n": F(8)
+    }
     single_blocker_n = 256
     single_blocker_ambiguity = sum((F(1, s) for s in range(1, single_blocker_n)), F(0))
     assert single_blocker_ambiguity == sum(
         (F(min(1, s), s) for s in range(1, single_blocker_n)), F(0)
     )
+
+    # Known-radius binary arithmetic regression.  This is not an off-grid
+    # campaign: it checks the corrected width algebra exactly.
+    center = F(1, 2)
+    radius = F(1, 100)
+    cover_radius = F(1, 10)
+    cover_point = F(3, 5)
+    selected_candidate = F(39, 100)
+    assert abs(cover_point - center) <= radius + cover_radius
+    assert abs(selected_candidate - center) <= radius + cover_radius
+    assert abs(center - selected_candidate) > 2 * radius
+    assert abs(center - selected_candidate) <= 2 * radius + cover_radius
+    assert abs(cover_point - selected_candidate) <= 2 * (radius + cover_radius)
+    known_radius_binary_regression = {
+        "center": str(center),
+        "radius": str(radius),
+        "cover_radius": str(cover_radius),
+        "cover_point": str(cover_point),
+        "selected_candidate": str(selected_candidate),
+        "true_to_candidate": str(abs(center - selected_candidate)),
+        "candidate_to_cover": str(abs(cover_point - selected_candidate)),
+        "corrected_direct_width": str(2 * radius + cover_radius),
+        "full_inflated_diameter": str(2 * (radius + cover_radius)),
+    }
 
     # Worst valid prefix length at every batch; all x_t in {0,1,2}, T=8.
     counting_checks = 0
@@ -258,6 +291,10 @@ def check():
         "implementation_completion_distance_checks": implementation_completion_distance_checks,
         "completion_diameter_lattice_checks": completion_diameter_checks,
         "saturated_outstanding_envelope_checks": saturated_envelope_checks,
+        "outstanding_envelope_boundary_regressions": {
+            k: str(v) for k, v in envelope_boundary_regressions.items()
+        },
+        "known_radius_binary_regression": known_radius_binary_regression,
         "single_blocker_exact_unresolved_mass_exposure": {
             "launches": single_blocker_n,
             "identity": "H_255",

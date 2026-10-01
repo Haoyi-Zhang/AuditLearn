@@ -321,34 +321,25 @@ For integers `U,n>=0`, define
     Psi_U(n) = sum_{s=1}^{(n-1)_+} min{U,s}/s.                      (24)
 
 **Corollary 7 (saturated unit-batch envelope).** Suppose `b_i=1` and
-`u_it<=U_i` at every boundary. Then, pathwise,
+`u_it <= U_i` at every boundary. Define `H_0=0` and
 
-    Gamma_i^miss(T) <= Psi_{U_i}(N_i,T+1).                          (25)
+`Psi_U(n) = sum_{s=1}^{(n-1)_+} min{U,s}/s`,
 
-For `U_i>=1`,
+with an empty sum equal to zero. Then pathwise
 
-    Psi_{U_i}(n) = n-1,                                  if n-1<=U_i,
-                 = U_i + U_i(H_{n-1}-H_{U_i}),            otherwise. (26)
+`Gamma_i^miss(T) <= Psi_U_i(N_i,T+1)`.
 
-In particular, `Psi_U(n) <= U[1+log max{1,n}]`. A schedule that withholds the
-first `U` audits through the learning horizon and returns each later audit at
-the next boundary attains equality after every number of launches.
+The exact closed form, including zero launches, is
 
-**Proof.** The `j`th type-`i` launch sees exactly `j-1` prior same-type launches,
-so `u_it<=min{U_i,j-1}`. Summing these sharp per-launch fractions gives (25).
-Splitting the sum before and after `U_i` gives (26). In the stated front-blocker
-schedule, `u_it=min{U_i,j-1}` at every launch. QED.
+- `Psi_U(n)=0` when `n<=1` or `U=0`;
+- `Psi_U(n)=n-1` when `n>=2` and `U>=n-1`; and
+- `Psi_U(n)=U+U(H_{n-1}-H_U)` when `n>=2` and `1<=U<n-1`.
 
-For one horizon-long blocker, the descriptor is exactly `H_{N_i,T+1-1}` while
-prefix debt can grow as `N_i,T+1-1`. This is a sharp statement about completion
-record geometry and the exposure descriptor, not a matching regret lower bound.
-It depends on identified, reliable full audits.
-
-For uniformly bounded reporting lag `Delta`, (1) gives `K_i<=b_i Delta`; the
-dual bound automatically takes the smaller of this deterministic description
-and realized unresolved-mass exposure. With fixed finite model dimensions,
-exact planning, and `delta=1/T`, the estimation term is `O(sqrt(T log T))`.
-Sublinear regret also requires the selected delay descriptors to be `o(T)`.
+At the `j`th launch, the denominator is `j-1` and the outstanding count is at
+most `min{U,j-1}`. Summing gives the formula. A front-blocker schedule attains
+equality term by term. For one blocker the exact descriptor is
+`H_{(N_i,T+1-1)_+}`. An unlaunched type contributes zero. The logarithmic
+upper bound is interpreted with `log max{1,N_i,T+1}`.
 
 ## 9. A separate exploration--waste inequality
 
@@ -442,7 +433,7 @@ Three exact counterexamples delimit the claims.
 - 209 exact fractional/integer diameter cases;
 - 26,244 prefix-exposure counting cases;
 - 26,244 completion-exposure counting cases;
-- 8,704 saturated outstanding-envelope cases;
+- 8,721 saturated outstanding-envelope cases;
 - 9,216 unlaunched-mark noninterference cases;
 - 96 audit-order states; and
 - five selector information-boundary checks.

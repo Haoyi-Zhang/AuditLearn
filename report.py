@@ -404,12 +404,29 @@ def summarize_scale(results: Path):
         raise ValueError("Duplicate scale run keys")
 
     scenario_blockers = {x["name"]: int(x["blockers"]) for x in config["scenarios"]}
+    rows_with_unlaunched_type = 0
+    unlaunched_type_occurrences = 0
     for r in runs:
         U = scenario_blockers[r["scenario"]]
         if int(r["maximum_unreturned"]) > U:
             raise ValueError("Front-blocker run exceeded configured outstanding count")
-        if abs(float(r["unresolved_mass_exposure"]) - float(r["sharp_unresolved_mass_envelope"])) > 1e-9:
+        launches = [int(r[f"launches{i}"]) for i in range(3)]
+        exact_envelope = sum(
+            sum(min(U, s) / s for s in range(1, n)) for n in launches
+        )
+        if abs(float(r["sharp_unresolved_mass_envelope"]) - exact_envelope) > 1e-9:
+            raise ValueError("Stored sharp envelope disagrees with launch counts")
+        if abs(float(r["unresolved_mass_exposure"]) - exact_envelope) > 1e-9:
             raise ValueError("Front-blocker descriptor did not attain its sharp envelope")
+        zero_count = sum(n == 0 for n in launches)
+        rows_with_unlaunched_type += int(zero_count > 0)
+        unlaunched_type_occurrences += zero_count
+    # Frozen-regression count: zero-launch types are part of the reported data,
+    # not an excluded edge case.
+    if rows_with_unlaunched_type != 80:
+        raise ValueError(
+            f"Expected 80 scaling rows with an unlaunched type, got {rows_with_unlaunched_type}"
+        )
 
     groups = defaultdict(list)
     for r in runs:
@@ -505,6 +522,9 @@ def summarize_scale(results: Path):
         horizons=config["horizons"],
         scenarios=scenario_blockers,
         exact_envelope_rows=len(runs),
+        rows_with_unlaunched_type=rows_with_unlaunched_type,
+        unlaunched_type_occurrences=unlaunched_type_occurrences,
+        zero_launch_convention="Psi_U(0)=0 and unlaunched types contribute zero",
         pairwise=pairwise,
         status="horizon/backlog scaling aggregation passed",
     )

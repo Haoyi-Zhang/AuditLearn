@@ -1,71 +1,188 @@
-# Approximate dictionary coverage and audit-blackout necessity
+# Known-radius dictionary approximation and conditional audit blackout
 
-This supplement isolates two reviewer-facing boundary questions: what changes when the true typed law is near, but not in, the finite dictionary; and why some dependence on audit arrival is unavoidable. It uses only the value-sensitivity/coupling property already proved in the main analysis.
+This supplement records two deliberately narrow boundary results. The first
+extends the finite-dictionary theorem when a valid typewise cover radius is
+known in advance. The second is a conditional indistinguishability statement;
+the current finite fork does not instantiate its premise.
 
-## Setup
+## Model domain and sensitivity
 
-Let `p=(p_i)_i` be the true collection of typed mark laws. Let `P` be the finite planning dictionary and suppose it contains a cover point `p_bar` satisfying
+Let
+
+`Q = product_i Delta(Z_i)`
+
+be the full product-law domain on which every causal policy in `Pi` and the
+bounded centered episode cost are defined. The planning dictionary `Theta` is
+a finite subset of `Q`. For every type `i`, at most `b_i` marks can be launched
+in one episode and the absolute centered episode cost is at most `L`.
+
+Use the explicit conservative sensitivity
+
+`B_i := L b_i`.
+
+The launch-coupling lemma then gives, for any policy `pi` and any `q,q' in Q`
+that agree outside coordinate `i`,
+
+`|V_q(pi)-V_q'(pi)| <= B_i TV(q_i,q'_i)`.
+
+The definition and bound are over the full model domain `Q`, not just pairs of
+dictionary points.
+
+## Proposition 1: inflated coverage for a known radius
+
+Suppose the true law `p in Q` need not belong to `Theta`, but a declared vector
+`epsilon_i in [0,1]` and a cover point `p_bar in Theta` satisfy
 
 `TV(p_i,p_bar_i) <= epsilon_i` for every type `i`.
 
-For a policy `pi`, define a uniform typewise sensitivity coefficient
+Inflate the type-`i` prefix test from radius `r_i(M_it)` to
+`r_i(M_it)+epsilon_i`, and the completion-distance test from
+`r_i(N_it)` to `r_i(N_it)+epsilon_i`. On the simultaneous tape event from the
+main theorem, `p_bar` is feasible for both inflated tests.
 
-`B_i = sup |V_q(pi)-V_q'(pi)| / TV(q_i,q'_i)`,
+For the prefix test this is the triangle inequality:
 
-where the supremum ranges over policies and model pairs that agree outside type `i`; the ratio is zero for equal coordinates. The bounded-loss and bounded-launch assumptions, together with the launch coupling, provide the explicit finite upper bound used in the paper.
+`TV(p_bar_i,p_hat_i,M) <= epsilon_i + r_i(M_it)`.
 
-## Proposition 1: cover-robust confidence
+For completion confidence, distance to a nonempty set is 1-Lipschitz:
 
-Inflate every type-`i` prefix-ball or completion-distance test by `epsilon_i`. On the original simultaneous concentration event, `p_bar` belongs to every inflated confidence set.
+`dist_TV(p_bar_i,E_it) <= epsilon_i + dist_TV(p_i,E_it)`
+`                           <= epsilon_i + r_i(N_it)`.
 
-### Proof
+Feasibility of `p_bar` does **not** allow the nominal `2r` width to be reused.
 
-For a prefix ball, the concentration event gives `TV(p_i,p_hat_i) <= r_it`. Therefore
+## Proposition 2: true-to-selected-candidate width
 
-`TV(p_bar_i,p_hat_i) <= TV(p_bar_i,p_i) + TV(p_i,p_hat_i) <= epsilon_i+r_it`.
+Let `q_t` be any candidate selected from the inflated intersection set. Direct
+comparison with the true law gives
 
-For a completion set `E_it`, the concentration event gives `dist_TV(p_i,E_it) <= r_it`. The distance-to-set map is 1-Lipschitz, hence
+`TV(p_i,q_t,i) <= w_tilde_pre_it`
 
-`dist_TV(p_bar_i,E_it) <= TV(p_bar_i,p_i)+dist_TV(p_i,E_it) <= epsilon_i+r_it`.
+with
 
-The argument is simultaneous over types and times on the same event. No returned-only selection assumption is used.
+`w_tilde_pre_it := min{1, 2 r_i(M_it) + epsilon_i}`,
 
-## Proposition 2: regret under a known cover radius
+and
 
-Run the optimistic scheduler with the inflated confidence sets. Relative to the true-`p` oracle, the well-specified regret upper bound increases by at most
+`TV(p_i,q_t,i) <= w_tilde_cmp_it`
 
-`2 T sum_i B_i epsilon_i`.
+with
 
-### Proof
+`w_tilde_cmp_it := min{1, 2 r_i(N_it)`
+`                         + u_it/max{1,N_it} + epsilon_i}`.
 
-Fix an episode and write `pi_t` for the selected policy and `pi_p` for a true-model optimal policy. On the good event, `p_bar` is feasible for the optimistic problem. Insert and subtract values under `p_bar`:
+For the prefix route, one nominal radius joins `p_i` to the prefix empirical
+law and one inflated radius joins that empirical law to `q_t,i`. For the
+completion route, join `p_i` to one feasible completion, cross the completion
+set using its exact diameter `u_it/N_it`, and join another feasible completion
+to `q_t,i` using the inflated radius. Hence
 
-`V_p(pi_t)-V_p(pi_p)`
+`w_tilde_cap_it := min{w_tilde_pre_it,w_tilde_cmp_it}`
+`                <= w_cap_it + epsilon_i`.
 
-`= [V_p(pi_t)-V_p_bar(pi_t)]`
+This is the required correction to the uninflated-width argument.
 
-`+ [V_p_bar(pi_t)-V_p_bar(pi_p)]`
+## Proposition 3: regret with known cover radii
 
-`+ [V_p_bar(pi_p)-V_p(pi_p)]`.
+Let
 
-The first and third terms are each at most `sum_i B_i epsilon_i`. The middle term is controlled by the same optimism, planning-error, estimation-width, and delayed-exposure argument as in the well-specified proof because `p_bar` is feasible. Summing over `T` episodes yields the stated additive term. The failure event is handled exactly as in the main theorem.
+`mu^p_it := E_p[X_it | Hist_t]`
 
-This result requires declared radii that dominate the actual cover error. It does not estimate an unknown misspecification radius, and it does not convert a poor dictionary into a nonparametric learner.
+be the predictable launch occupancy under the **true** environment. The
+coupling from `p` to the selected candidate `q_t` must use this occupancy. An
+occupancy computed under `p_bar` is not the learner's actual launch occupancy.
 
-## Proposition 3: audit-blackout lower bound
+On the good event, optimism compares the selected pair `(q_t,pi_t)` with the
+feasible pair `(p_bar,pi_p^*)`. Coupling the selected policy from `p` to `q_t`
+and telescoping the oracle policy from `p_bar` to `p` gives
 
-Suppose two admissible environments have identical laws for every observation available to the learner during the first `h` episodes, their unique optimal actions are opposite, and the loss gap of the wrong action is at least `Delta` in each environment. Then every randomized learner has expected regret at least `h Delta / 2` in one of the two environments over the blackout interval.
+`V_p(pi_t)-V_p(pi_p^*)`
+` <= L sum_i mu^p_it w_tilde_cap_it`
+`    + planning_error_t + sum_i B_i epsilon_i`
+` <= L sum_i mu^p_it w_cap_it`
+`    + L sum_i mu^p_it epsilon_i`
+`    + planning_error_t + sum_i B_i epsilon_i`.
 
-### Proof
+The widths are measurable at the decision boundary, so the same tower-property
+step as in the main theorem gives
 
-Because the observable histories have the same law, the learner has the same action distribution in both environments at every blackout episode. Let `alpha_t` be the probability of choosing the action optimal only in environment 1. The average of the two one-step regrets is at least
+`E_p[mu^p_it w_cap_it] = E_p[X_it w_cap_it]`
 
-`(Delta/2) [alpha_t + (1-alpha_t)] = Delta/2`.
+without conditioning on the future-dependent global confidence event. Summing
+and handling the failure event separately yields
 
-After summing over `t=1,...,h`, the average cumulative regret is at least `h Delta/2`, so the larger of the two regrets is at least the same value.
+`R_T(p)`
+` <= L E_p[sum_t,i X_it w_cap_it]`
+`    + L sum_i epsilon_i E_p[N_i,T+1]`
+`    + T sum_i B_i epsilon_i`
+`    + sum_t planning_error_t + L T delta`.
 
-This is deliberately a limited necessity statement. It rules out delay-free guarantees under unrestricted blackouts; it is not a matching lower bound for chronological prefix debt, unresolved-mass exposure, or their minimum.
+Since `N_i,T+1 <= T b_i` and `B_i=L b_i`, a convenient conservative form is
 
-## Machine checks
+`R_T(p)`
+` <= (nominal actual-exposure bound)`
+`    + 2 T sum_i B_i epsilon_i`.
 
-`python run.py check` verifies the distance-to-completion-set calculation on an exhaustive finite lattice and compares the production selector implementation with an independent brute-force computation. The off-grid campaign constructs truths outside the planning dictionary with recorded cover radii and checks nominal versus inflated set membership. Those finite checks support the implementation and examples; they do not replace the general arguments above.
+Thus the compact approximation penalty remains valid, but only after charging
+`epsilon_i` in the true-to-selected-candidate width and using the true-law
+predictable occupancy.
+
+## Binary arithmetic regression
+
+Take a binary law with true and empirical success probability `0.50`, nominal
+radius `r=0.01`, known cover radius `epsilon=0.10`, cover point `0.60`, and
+selected candidate `0.39`. Both dictionary candidates pass the inflated radius
+`r+epsilon=0.11` around `0.50`.
+
+However,
+
+- the nominal diameter `2r=0.02` does not bound
+  `TV(0.50,0.39)=0.11`;
+- it also does not bound the candidate-to-cover distance
+  `TV(0.60,0.39)=0.21`;
+- the corrected direct width `2r+epsilon=0.12` does bound the true-to-selected
+  distance; and
+- the full inflated-set diameter `2(r+epsilon)=0.22` bounds the distance
+  between the two feasible dictionary points.
+
+`python run.py check` verifies these rational equalities and inequalities. It is
+an exact arithmetic regression, not an off-grid experiment.
+
+## What the artifact does and does not contain
+
+The released artifact contains exactly three reported empirical campaigns:
+`pilot`, `stress`, and `scale`. It has no dictionary-external input file, no
+inflated-confidence selector, and no off-grid result. Therefore the
+known-radius result above is reported only as a proved theoretical extension.
+No dictionary-internal run is renamed as misspecification evidence, and no
+adaptive estimate of an unknown cover radius is claimed.
+
+## Conditional audit-blackout necessity
+
+For this statement, visible history includes the learner's chosen policies and
+actions, all physical arrivals, nonarrivals and within-episode outcomes, the
+realized scalar centered cost when observed, the learner's own randomization,
+and all audits returned so far.
+
+Assume two admissible environments have the same law for this **entire** visible
+history during the first `h` episodes in which no new audit is returned. Assume
+also that their unique optimal policies are opposite and that selecting the
+wrong policy has gap at least `Delta` in each environment. Then every randomized
+learner has expected regret at least `h Delta/2` in one of the two environments
+over the blackout interval.
+
+The proof is the standard two-environment averaging argument. Equality in law
+of the visible history forces the same conditional policy distribution in both
+environments. If `alpha_t` is the probability of choosing the policy optimal
+only in environment 1, the two one-step regrets average at least
+
+`Delta [alpha_t + (1-alpha_t)] / 2 = Delta/2`.
+
+Summing over `h` episodes and taking the larger environment-specific regret
+proves the conditional statement.
+
+The current finite fork generally reveals physical events and scalar costs that
+can differ across environments. The artifact does not provide a pair satisfying
+full-history indistinguishability. Consequently this supplement does not claim
+an unconditional blackout lower bound for the fork, nor a matching lower bound
+for prefix debt, unresolved-mass exposure, or their minimum.

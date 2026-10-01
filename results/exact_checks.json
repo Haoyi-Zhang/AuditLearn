@@ -6,8 +6,25 @@
   "coupling_checks": 19683,
   "implementation_completion_distance_checks": 3320,
   "independent_policy_triplets": 729,
+  "known_radius_binary_regression": {
+    "candidate_to_cover": "21/100",
+    "center": "1/2",
+    "corrected_direct_width": "3/25",
+    "cover_point": "3/5",
+    "cover_radius": "1/10",
+    "full_inflated_diameter": "11/50",
+    "radius": "1/100",
+    "selected_candidate": "39/100",
+    "true_to_candidate": "11/100"
+  },
   "maximum_coupling_ratio": "49/72",
   "oracle_matches": 27,
+  "outstanding_envelope_boundary_regressions": {
+    "n0": "0",
+    "n1": "0",
+    "u0_n9": "0",
+    "u_ge_n": "8"
+  },
   "policy_values_exact": 729,
   "prefix_counting_checks": 26244,
   "prefix_debt_counterexample": {
@@ -33,7 +50,7 @@
       2
     ]
   },
-  "saturated_outstanding_envelope_checks": 8704,
+  "saturated_outstanding_envelope_checks": 8721,
   "selection_information_checks": 5,
   "selective_return_counterexample": {
     "completed_success_fraction": "0",

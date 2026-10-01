@@ -119,11 +119,14 @@
       "scenario": "front-blockers-4"
     }
   ],
+  "rows_with_unlaunched_type": 80,
   "scale_runs": 600,
   "scenarios": {
     "front-blockers-1": 1,
     "front-blockers-4": 4
   },
   "status": "horizon/backlog scaling aggregation passed",
-  "total_episodes": 476160
+  "total_episodes": 476160,
+  "unlaunched_type_occurrences": 80,
+  "zero_launch_convention": "Psi_U(0)=0 and unlaunched types contribute zero"
 }

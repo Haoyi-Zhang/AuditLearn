@@ -2,35 +2,57 @@
 
 ## What this artifact establishes
 
-The artifact independently recomputes finite policy values, oracle minima, launch-sensitive coupling checks, completion-set geometry, delayed-exposure inequalities, selector information boundaries, and all frozen synthetic campaigns. It also rebuilds the tables/plot inputs used by the paper.
+The artifact independently recomputes finite policy values, oracle minima,
+launch-sensitive coupling checks, completion-set geometry, delayed-exposure
+inequalities, selector information boundaries, and the three frozen synthetic
+campaigns: pilot, stress, and scaling. It also rebuilds the paper tables and
+plot inputs.
 
 ## What it does not establish
 
-It does not mechanically prove the general theorems, execute a language model, benchmark serving hardware, establish population-level generalization, or certify novelty and acceptance. Those boundaries are explicit in the paper and `CURRENT-STATE.md`.
+It does not mechanically prove the general theorems, execute a language model,
+benchmark serving hardware, establish population-level generalization, or
+certify novelty or acceptance. It contains no off-grid empirical campaign and
+no inflated-confidence selector. The known-radius dictionary result is a hand
+proof plus an exact binary arithmetic regression.
 
 ## Quick path
 
 ```bash
 python run.py check --output check-results
 python run.py smoke --output smoke-results
-python validate_release.py --quick
+python reproduce_release.py quick-results --skip-long
 ```
+
+The quick path does not regenerate stress or scaling.
 
 ## Complete path
 
-Use the release script documented in `README.md`. Long campaigns are deterministic and sharded. Re-running a complete campaign may take materially longer than a quick check; use the recorded command-level resource log rather than an assumed runtime.
+```bash
+python reproduce_release.py repro-results
+```
+
+This runs the documented eight stress shards and merge, four scaling shards and
+merge, and all remaining checks. Missing or duplicate shards cause failure.
 
 ## Method information sets
 
-- **prefix-only:** valid chronological-prefix confidence information.
-- **completion-only:** valid confidence information from all returned counts plus the number of unresolved launched records.
-- **intersection:** intersection of the preceding two valid sets.
-- **returned-only:** deliberately invalid negative control that treats selected returns as if they were an iid sample.
-- **plug-in:** nonconservative point-estimate diagnostic.
-- **oracle:** truth-aware diagnostic lower reference, not a deployable learner.
-
-The names are semantic contracts. `validate_release.py` rejects legacy ambiguous labels in generated tables.
+- **prefix (`prefix`)**: valid chronological-prefix confidence information.
+- **intersection (`intersection`)**: intersection of prefix confidence with the
+  valid completion-polytope confidence description.
+- **completed control (`completed`)**: deliberately invalid negative control
+  that treats the selected returned records as if they were iid. The legacy
+  serialized name is retained for frozen-result identity; it is not a
+  completion-polytope-only learner.
+- **plug-in (`plugin`)**: nonconservative point-estimate diagnostic.
+- **known, product, safe**: privileged or fixed comparators, not deployable
+  confidence learners.
 
 ## Determinism and integrity
 
-Every campaign uses explicit stable integer seeds. Merge operations require the complete configured key set, reject duplicates, and sort rows before serialization. The release manifest records SHA-256 hashes for source, frozen data, and generated paper fragments.
+Every campaign uses explicit stable integer seeds. Merge operations require the
+complete configured key set, reject duplicates, and sort rows before
+serialization. The validators check syntax, finite numeric outputs, exact
+row duplication, bibliography consistency, and the absence of invented
+off-grid executable assets. A successful run is an internal-consistency check,
+not a formal proof or independent review.

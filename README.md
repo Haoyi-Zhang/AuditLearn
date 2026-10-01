@@ -35,15 +35,19 @@ For type `i`, launch-normalized unresolved-mass exposure is
 where `X_it` is the number of launches in episode `t`, `N_it` is the earlier
 launch count, and `u_it` is the number of unreturned audits.  With at most one
 same-type launch per episode and at most `U_i` outstanding audits, this term is
-bounded by the sharp envelope `sum_{s=1}^{N_i-1} min{U_i,s}/s`.  Hence a
+bounded by the sharp envelope `sum_{s=1}^{(N_i-1)_+} min{U_i,s}/s`, with
+`Psi_U(0)=Psi_U(1)=Psi_0(n)=0`. Hence a
 single old missing record can create linear chronological prefix debt while
 incurring exactly harmonic unresolved-mass exposure.
 
-The result requires independent iid type tapes, a finite candidate dictionary
+The main result requires independent iid type tapes, a finite candidate dictionary
 containing the truth, a finite causal policy class, bounded launches, bounded
 centered cost, and a reliable full audit for every launched mark.  It does not
 cover destroyed/censored marks, arbitrary misspecification, correlated tapes,
-anonymous audits, a general efficient planning oracle, or a deployed decoder.
+anonymous audits, a general efficient planning oracle, or a deployed decoder. A separate proved extension covers a declared typewise
+TV approximation radius using inflated confidence sets and the conservative
+coordinate sensitivity `B_i=L b_i`; the artifact has no off-grid empirical
+campaign or inflated selector.
 
 ## Reproduction commands
 
@@ -200,10 +204,13 @@ full-audit closure.  Drained records never affect a policy decision.
 - 209 exact fractional/integer completion-diameter cases;
 - 26,244 chronological-prefix exposure cases;
 - 26,244 completion-exposure cases;
-- 8,704 saturated outstanding-envelope cases;
+- 8,721 saturated outstanding-envelope cases, including `n=0`, `n=1`,
+  `U=0`, and `U>=n` boundary regimes;
 - 9,216 unlaunched-mark noninterference cases;
 - 96 audit-order states; and
-- five selector information-boundary checks.
+- five selector information-boundary checks; and
+- one exact known-radius binary regression for center `0.50`, `r=0.01`,
+  `epsilon=0.10`, cover point `0.60`, and selected candidate `0.39`.
 
 The checks also retain three exact counterexamples:
 
@@ -246,8 +253,10 @@ debt is 511.  Across 108 paired truth-seed cells, intersection confidence has
 lower pseudo-regret than prefix confidence in 76 cells, ties in 27, and is
 worse in five.  Its mean paired difference is `-65.0811`.  Mean cumulative
 pseudo-regret is 72.59 for prefix confidence and 7.51 for intersection
-confidence.  Completion-only confidence is 7.17 and the plug-in baseline is
-9.35.
+confidence.  The deliberately invalid `completed` returned-sample control has mean 7.17
+under this non-mark-selected schedule, and the plug-in baseline has mean 9.35;
+that favorable control result does not make its confidence construction valid
+under outcome-dependent returns.
 
 For `outcome-lag-64`, intersection is better in 69 of 108 cells, ties in 31,
 and is worse in eight, with mean paired difference `-4.7967`.  Mean regret is
@@ -263,7 +272,9 @@ The prespecified scaling campaign adds 600 runs and 476,160 episodes over
 horizons 128, 256, 512, 1024, and 2048; blocker counts one and four; three
 truths; four seeds; and five methods. Shorter runs are exact prefixes of a
 common 2,048-episode world stream. Every row attains the sharp descriptor
-envelope `sum_i Psi_U(N_i)` to numerical tolerance.
+envelope `sum_i Psi_U(N_i)` to numerical tolerance. The regression explicitly
+retains 80 rows with at least one unlaunched task type and verifies that each
+such type contributes `Psi_U(0)=0`.
 
 Across all ten blocker/horizon slices, intersection is never worse than prefix
 in any of the 12 paired truth-seed cells. For one blocker, mean prefix regret
@@ -287,10 +298,14 @@ sensitivity campaign.  `aggregate.csv`,
 files in `results/` are generated directly from those summaries.
 
 Execution JSON files record process CPU, wall time, and peak resident memory.
-These operational measurements naturally vary between runs and are not
-scientific deterministic outputs. Each shard uses one worker. The clean
-reproduction record reports per-command measurements and the largest observed
-command-level peak RSS; it does not present their sum as a whole-session peak.
+For the retained reference logs, the eight stress-shard CPU fields sum to
+`29.595921274` seconds and the four scaling-shard fields sum to `21.04284331`
+seconds. Their largest shard wall times are `3.86450011100001` and
+`5.31110579200003` seconds. Across those shards and their merge commands, the
+largest host-reported command peak is `124584` KiB. The records do not identify
+the processor model. These values are environment-specific diagnostics; CPU
+sums are sequential accounting, wall times are not deterministic, and RSS peaks
+are not additive or a whole-session trace.
 
 ## Interpretation and limitations
 
@@ -319,30 +334,39 @@ successful command proves local execution and internal consistency, not the
 scientific correctness of every argument.  Before external use, human authors
 must recheck venue, authorship, disclosure, originality, and repository rules.
 
-## Reviewer-closure release path
+## Release reproduction path
 
-The strongest release gate is:
+The complete release workflow is:
 
 ```bash
 python reproduce_release.py repro-results
 ```
 
-It discovers the frozen `run.py` command names, requires exact checks, pilot, all-dictionary stress, horizon/backlog scaling, off-grid misspecification, verification, and smoke roles, and records command-level wall/CPU/peak-RSS metadata. It then executes three independent post-processors:
+It executes exact checks and the pilot, then the documented eight-shard stress
+chain and four-shard scaling chain with their merge completeness checks,
+followed by pilot verification, deterministic report generation, smoke, and
+scope-matched validators. The artifact exposes no `offgrid` command and has no
+off-grid input or result.
 
-```bash
-python reviewer_requirements.py --results repro-results
-python reviewer_invariants.py --results repro-results
-python validate_release.py --results repro-results --write-manifest
-```
-
-For a quick installation and serialization check without long campaigns:
+For a quick installation and serialization check without regenerating the two
+long campaigns:
 
 ```bash
 python reproduce_release.py quick-results --skip-long
 ```
 
-The quick path is not evidence that the long frozen results were regenerated. Consult `reproduction-command-manifest.json` and each command log before making that claim.
+The quick report explicitly labels its scope and cannot be used as evidence
+that stress or scaling were regenerated. It no longer attempts to resolve a
+nonexistent off-grid command.
 
-Method names are intentionally explicit: `completion-only` is a valid completion-polytope confidence method; `returned-only` is a deliberately invalid negative control. Legacy output labeled only “Completed” must not be used in a release.
+When this repository is extracted without the sibling `paper/` directory, the
+release validator explicitly records that the bibliography audit was not
+performed; it does not report that absent paper-side check as a pass. The same
+validator performs the full citation-key audit inside the complete project.
 
-The off-grid campaign assumes a declared TV cover radius. It tests the known-radius extension and nominal misspecification failure; it does not estimate an unknown radius or establish nonparametric robustness.
+The serialized method label `completed` is retained to preserve the identity of
+the frozen tables. It denotes the deliberately invalid control that treats
+returned records as an iid sample; it is not a completion-polytope-only learner.
+The valid learners reported here are `prefix` and `intersection`. The
+known-radius dictionary extension is theory plus an exact arithmetic regression,
+not an empirical campaign.

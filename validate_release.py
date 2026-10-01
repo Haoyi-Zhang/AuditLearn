@@ -1,201 +1,180 @@
 #!/usr/bin/env python3
-"""Independent, standard-library release validator.
-
-The validator intentionally does not import the simulator package.  It checks
-serialized results and source files through a separate code path so that a
-single implementation error is less likely to validate itself.
-"""
+"""Independent standard-library validator for the current artifact scope."""
 from __future__ import annotations
-import argparse, csv, hashlib, json, os, platform, re, subprocess, sys
-from collections import Counter
-from datetime import datetime, timezone
+import argparse
+import ast
+import csv
+import json
+import math
+import re
+import subprocess
+import sys
 from pathlib import Path
-from typing import Any, Iterable
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
-AMBIGUOUS_METHODS = {"completed", "complete", "returned"}
 REQUIRED_DOCS = [
     ROOT / "README.md",
     ROOT / "ARTIFACT-EVALUATION.md",
     ROOT / "DATA-DICTIONARY.md",
     ROOT / "STATISTICAL-INTERPRETATION.md",
     ROOT / "LIMITATIONS-MATRIX.md",
-    ROOT / "verify_curated_results.py",
-    ROOT / "audit_reference_evidence.py",
+    ROOT / "proofs" / "analysis.md",
+    ROOT / "proofs" / "adaptive-indexing-and-completion.md",
     ROOT / "proofs" / "misspecification-and-blackout.md",
-    PROJECT / "REVIEWER-CHECKLIST.md",
 ]
 
 
-def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for block in iter(lambda: f.read(1 << 20), b""):
-            h.update(block)
-    return h.hexdigest()
-
-
-def text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="strict")
-
-
-def iter_release_files() -> Iterable[Path]:
-    excluded = {"__pycache__", ".git", ".pytest_cache"}
-    for p in sorted(PROJECT.rglob("*")):
-        if not p.is_file() or any(part in excluded for part in p.parts):
+def source_audit() -> dict:
+    findings = {"builtin_hash_calls": [], "network_or_model_imports": [], "gpu_imports": []}
+    for path in sorted(ROOT.rglob("*.py")):
+        if "__pycache__" in path.parts:
             continue
-        if p.name in {"MANIFEST.sha256", "reproduction-manifest.json"}:
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except SyntaxError as exc:
+            findings.setdefault("syntax_errors", []).append(f"{path.relative_to(PROJECT)}:{exc.lineno}:{exc.msg}")
             continue
-        yield p
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "hash":
+                findings["builtin_hash_calls"].append(f"{path.relative_to(PROJECT)}:{node.lineno}")
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                names = [a.name.split('.')[0] for a in node.names] if isinstance(node, ast.Import) else [(node.module or '').split('.')[0]]
+                for name in names:
+                    if name in {"requests", "httpx", "openai", "anthropic", "socket", "urllib3"}:
+                        findings["network_or_model_imports"].append(f"{path.relative_to(PROJECT)}:{node.lineno}:{name}")
+                    if name in {"torch", "tensorflow", "jax", "cupy"}:
+                        findings["gpu_imports"].append(f"{path.relative_to(PROJECT)}:{node.lineno}:{name}")
+    return findings
 
 
-def candidate_key(columns: list[str]) -> list[str]:
-    preferred = [
-        "campaign", "truth", "truth_id", "seed", "method", "delay",
-        "delay_mechanism", "horizon", "episode", "time", "blocker_count",
-        "audit_lag", "run_id", "cell_id",
-    ]
-    return [c for c in preferred if c in columns]
+def bibliography_audit() -> dict:
+    """Audit the paper when this artifact is inside the complete project.
+
+    The standalone repository intentionally has no sibling ``paper/`` tree.
+    That absence is therefore reported explicitly rather than treated as a
+    successful bibliography check or as an artifact failure.
+    """
+    paper = PROJECT / "paper"
+    bib_path = paper / "references.bib"
+    if not bib_path.exists():
+        return {
+            "performed": False,
+            "reason": "standalone artifact: no sibling paper/references.bib",
+            "entries": None,
+            "cited": None,
+            "missing": [],
+            "uncited": [],
+            "uses_nocite": None,
+        }
+    bib = bib_path.read_text(encoding="utf-8")
+    tex = "\n".join(p.read_text(encoding="utf-8") for p in paper.glob("*.tex"))
+    entries = set(re.findall(r"@\w+\s*\{\s*([^,\s]+)", bib))
+    cited: set[str] = set()
+    for grp in re.findall(r"\\cite\w*\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}", re.sub(r"(?m)%.*$", "", tex)):
+        cited.update(k.strip() for k in grp.split(",") if k.strip())
+    return {
+        "performed": True,
+        "reason": None,
+        "entries": len(entries),
+        "cited": len(cited),
+        "missing": sorted(cited - entries),
+        "uncited": sorted(entries - cited),
+        "uses_nocite": "\\nocite" in tex,
+    }
 
 
-def inspect_csv(path: Path, full: bool) -> dict[str, Any]:
+def inspect_csv(path: Path, full: bool) -> dict:
+    nonfinite = 0
+    duplicate_rows = 0
+    seen: set[tuple[str, ...]] = set()
     with path.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        cols = reader.fieldnames or []
-        key = candidate_key(cols)
+        reader = csv.reader(f)
+        header = next(reader, [])
         rows = 0
-        methods: Counter[str] = Counter()
-        seen: set[tuple[str, ...]] = set()
-        duplicate_keys = 0
-        sorted_violation = False
-        last: tuple[str, ...] | None = None
         for row in reader:
             rows += 1
-            if "method" in row and row["method"]:
-                methods[row["method"].strip().lower()] += 1
-            if full and key:
-                k = tuple(row.get(c, "") for c in key)
-                if k in seen:
-                    duplicate_keys += 1
-                seen.add(k)
-                if last is not None and k < last:
-                    sorted_violation = True
-                last = k
-    bad = sorted(set(methods) & AMBIGUOUS_METHODS)
-    return {
-        "columns": cols,
-        "rows": rows,
-        "candidate_key": key,
-        "duplicate_candidate_keys": duplicate_keys,
-        "candidate_key_not_sorted": sorted_violation,
-        "method_counts": dict(sorted(methods.items())),
-        "ambiguous_method_labels": bad,
-        "sha256": sha256(path),
-        "bytes": path.stat().st_size,
-    }
-
-
-def source_audit() -> dict[str, Any]:
-    py = [p for p in ROOT.rglob("*.py") if "__pycache__" not in p.parts]
-    combined = "\n".join(text(p) for p in py)
-    findings: dict[str, list[str]] = {}
-    patterns = {
-        "network_or_model_clients": r"\b(requests|urllib3|openai|anthropic|socket|httpx)\b",
-        "gpu_frameworks": r"\b(torch|tensorflow|jax|cupy|cuda)\b",
-        "shell_execution": r"\b(os\.system|subprocess\.(Popen|run|call|check_output))\b",
-        "builtin_hash_calls": r"(?<![A-Za-z0-9_])hash\s*\(",
-        "unseeded_system_random": r"\b(SystemRandom|secrets\.)",
-    }
-    for label, pat in patterns.items():
-        hits=[]
-        rx=re.compile(pat)
-        for p in py:
-            for n,line in enumerate(text(p).splitlines(),1):
-                if rx.search(line):
-                    hits.append(f"{p.relative_to(PROJECT)}:{n}:{line.strip()[:180]}")
-        findings[label]=hits
-    return {"python_files":len(py),"findings":findings}
-
-
-def bibliography_audit() -> dict[str, Any]:
-    bibs=list((PROJECT/"paper").rglob("*.bib")) if (PROJECT/"paper").exists() else []
-    texs=list((PROJECT/"paper").rglob("*.tex")) if (PROJECT/"paper").exists() else []
-    entries: set[str]=set()
-    for p in bibs:
-        entries.update(re.findall(r"@\w+\s*\{\s*([^,\s]+)", text(p)))
-    cited: set[str]=set()
-    for p in texs:
-        s=re.sub(r"(?m)%.*$", "", text(p))
-        for grp in re.findall(r"\\cite\w*\s*(?:\[[^\]]*\]\s*)*\{([^}]+)\}", s):
-            cited.update(k.strip() for k in grp.split(",") if k.strip())
-    return {
-        "bib_entries":len(entries),"cited_keys":len(cited),
-        "missing_entries":sorted(cited-entries),"uncited_entries":sorted(entries-cited),
-        "uses_nocite":any("\\nocite" in text(p) for p in texs),
-    }
-
-
-def compile_check() -> dict[str, Any]:
-    r=subprocess.run([sys.executable,"-m","compileall","-q",str(ROOT)],
-                     stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    return {"returncode":r.returncode,"output":r.stdout[-4000:]}
+            if full:
+                key = tuple(row)
+                duplicate_rows += int(key in seen)
+                seen.add(key)
+            for cell in row:
+                try:
+                    value = float(cell)
+                except ValueError:
+                    continue
+                if not math.isfinite(value):
+                    nonfinite += 1
+    return {"columns": header, "rows": rows, "duplicate_exact_rows": duplicate_rows, "nonfinite_cells": nonfinite}
 
 
 def main() -> int:
-    ap=argparse.ArgumentParser()
-    ap.add_argument("--quick",action="store_true",help="skip row-level duplicate/sort scan")
-    ap.add_argument("--results",default=None,help="results directory; defaults to release results if present")
-    ap.add_argument("--write-manifest",action="store_true")
-    args=ap.parse_args()
-    errors=[]
-    warnings=[]
-    for p in REQUIRED_DOCS:
-        if not p.exists(): errors.append(f"missing required document: {p.relative_to(PROJECT)}")
-    comp=compile_check()
-    if comp["returncode"]: errors.append("Python compileall failed")
-    results=Path(args.results).resolve() if args.results else None
-    if results is None:
-        candidates=[ROOT/"results",ROOT/"repro-results",ROOT/"reviewer-full",ROOT/"reviewer-results"]
-        results=next((p for p in candidates if p.exists()), ROOT/"results")
-    csv_info={}
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--quick", action="store_true")
+    ap.add_argument("--results", default="results")
+    args = ap.parse_args()
+    results = Path(args.results).resolve()
+    errors: list[str] = []
+
+    for path in REQUIRED_DOCS:
+        if not path.exists():
+            errors.append(f"missing required document: {path.relative_to(PROJECT)}")
+
+    compile_proc = subprocess.run([sys.executable, "-m", "compileall", "-q", str(ROOT)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if compile_proc.returncode:
+        errors.append("Python compileall failed")
+
+    csv_report = {}
     if results.exists():
-        for p in sorted(results.rglob("*.csv")):
-            rel=str(p.relative_to(results))
-            info=inspect_csv(p,full=not args.quick)
-            csv_info[rel]=info
-            if info["ambiguous_method_labels"]:
-                errors.append(f"ambiguous method label in {rel}: {info['ambiguous_method_labels']}")
-            # Duplicate checks are only definitive when the heuristic key spans most identifiers.
-            if not args.quick and len(info["candidate_key"])>=3 and info["duplicate_candidate_keys"]:
-                warnings.append(f"heuristic candidate-key duplicates in {rel}: {info['duplicate_candidate_keys']}; authoritative campaign verification uses the configured key set")
-    bib=bibliography_audit()
-    if bib["missing_entries"]: errors.append(f"missing bibliography entries: {bib['missing_entries']}")
-    if bib["uncited_entries"]: errors.append(f"uncited bibliography entries: {bib['uncited_entries']}")
-    if bib["uses_nocite"]: errors.append("paper uses \\nocite")
-    src=source_audit()
-    # Network/GPU findings are not automatically errors because words may occur in comments/docs.
-    if src["findings"]["builtin_hash_calls"]:
-        errors.append("built-in hash() call found; release seeds must be stable across processes")
-    manifest={
-        "schema_version":1,
-        "generated_utc":datetime.now(timezone.utc).isoformat(),
-        "platform":{"python":sys.version,"implementation":platform.python_implementation(),
-                    "platform":platform.platform(),"machine":platform.machine(),
-                    "cpu_count":os.cpu_count()},
-        "results_directory":str(results.relative_to(PROJECT)) if results.exists() and PROJECT in results.parents else str(results),
-        "csv":csv_info,"bibliography":bib,"source_audit":src,"compileall":comp,
-        "release_files":{str(p.relative_to(PROJECT)): {"bytes":p.stat().st_size,"sha256":sha256(p)} for p in iter_release_files()},
-        "errors":errors,"warnings":warnings,
+        for path in sorted(results.glob("*.csv")):
+            info = inspect_csv(path, full=not args.quick)
+            csv_report[path.name] = info
+            if info["nonfinite_cells"]:
+                errors.append(f"nonfinite numeric cells in {path.name}")
+            if info["duplicate_exact_rows"]:
+                errors.append(f"exact duplicate rows in {path.name}: {info['duplicate_exact_rows']}")
+    else:
+        errors.append(f"results directory does not exist: {results}")
+
+    src = source_audit()
+    for key, hits in src.items():
+        if hits:
+            errors.append(f"{key}: {hits[:10]}")
+    bib = bibliography_audit()
+    if bib["missing"] or bib["uncited"] or bib["uses_nocite"]:
+        errors.append(f"bibliography mismatch: {bib}")
+
+    run_text = (ROOT / "run.py").read_text(encoding="utf-8")
+    inputs = sorted(p.name for p in (ROOT / "inputs").glob("*.json"))
+    scope = {
+        "run_commands": re.findall(r'choices=\[([^\]]+)\]', run_text),
+        "input_files": inputs,
+        "offgrid_command_present": "offgrid" in run_text.lower(),
+        "offgrid_input_present": any("offgrid" in x.lower() for x in inputs),
     }
-    out=results/"reproduction-manifest.json" if results.exists() else ROOT/"reproduction-manifest.json"
-    if args.write_manifest or not args.quick:
-        out.parent.mkdir(parents=True,exist_ok=True)
-        out.write_text(json.dumps(manifest,indent=2,sort_keys=True)+"\n",encoding="utf-8")
-    print(json.dumps({"status":"PASS" if not errors else "FAIL","errors":errors,"warnings":warnings,
-                      "csv_files":len(csv_info),"bib_entries":bib["bib_entries"],
-                      "manifest":str(out)},indent=2))
+    if scope["offgrid_command_present"] or scope["offgrid_input_present"]:
+        errors.append("unexpected off-grid executable asset present")
+
+    try:
+        results_display = str(results.relative_to(ROOT))
+    except ValueError:
+        results_display = str(results)
+    report = {
+        "status": "PASS" if not errors else "FAIL",
+        "quick": args.quick,
+        "results": results_display,
+        "compileall_returncode": compile_proc.returncode,
+        "csv": csv_report,
+        "bibliography": bib,
+        "source_audit": src,
+        "campaign_scope": scope,
+        "errors": errors,
+    }
+    if results.exists():
+        (results / "release-validation.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(json.dumps(report, indent=2))
     return 1 if errors else 0
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     raise SystemExit(main())

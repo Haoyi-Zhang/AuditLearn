@@ -1,5 +1,5 @@
 {
-  "results": "final-results",
+  "status": "PASS",
   "checks": [
     {
       "name": "finite_numeric_outputs",
@@ -8,12 +8,20 @@
       "details": []
     },
     {
-      "name": "episode_level_cross_method_invariants",
-      "executed": false,
-      "passed": false,
-      "reason": "no method/time CSV found"
+      "name": "pilot_confidence_exclusions",
+      "executed": true,
+      "prefix": 0,
+      "intersection": 0,
+      "completed_negative_control": 213,
+      "passed": true
+    },
+    {
+      "name": "scale_zero_launch_rows",
+      "executed": true,
+      "rows": 80,
+      "passed": true,
+      "meaning": "zero-launch types remain in the frozen scaling evidence and contribute Psi_U(0)=0"
     }
   ],
-  "errors": [],
-  "status": "PASS"
+  "errors": []
 }

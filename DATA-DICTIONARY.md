@@ -21,4 +21,4 @@ Common outcomes:
 - `outstanding`: number of unresolved launched audits at the episode boundary.
 - `launches`: realized or expected task launches, as indicated by the table name.
 
-Generated release validation records each file’s exact columns, row count, primary-key candidates, and SHA-256 hash in `results/reproduction-manifest.json`. Consumers should use that manifest instead of inferring schemas from column position.
+The CSV header is authoritative for each file. `reviewer_requirements.py`, `reviewer_invariants.py`, and `validate_release.py` check campaign coverage, key uniqueness, finite numeric values, and scope consistency without relying on a shipped checksum manifest.

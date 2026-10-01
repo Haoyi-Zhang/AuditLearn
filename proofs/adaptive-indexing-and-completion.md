@@ -4,11 +4,11 @@ A common concern is that the number of launched tasks and the longest fully retu
 
 For each type `i`, expose in advance an infinite iid tape `Z_i1,Z_i2,...` with law `p_i`. The scheduler reveals the next tape entry whenever it launches a type-`i` task. Let `N_it` be the number of such launches before decision `t`, and let `M_it <= N_it` be the longest chronological launch prefix whose audits have all returned.
 
-Construct a simultaneous event
+Construct the finite-horizon simultaneous event used by the main theorem,
 
-`G_i = { d(p_hat_i,n, p_i) <= r_i(n,delta) for every integer n >= 1 }`.
+`G_i = { d(p_hat_i,n, p_i) <= r_i(n,delta) for every integer 1 <= n <= B T }`.
 
-The concentration proof is for all deterministic prefix lengths at once. Therefore, on `G_i`, the same inequality holds pathwise after substituting the random values `N_it` or `M_it`. No claim that these indices are independent of the tape is required, and no conditional iid statement is used.
+At most `B T` tasks are launched through horizon `T`, so every random index `N_it` or `M_it` lies in this deterministic range. The concentration proof is for all of those deterministic prefix lengths at once. Therefore, on `G_i`, the same inequality holds pathwise after substituting the random values. No claim that these indices are independent of the tape is required, and no conditional iid statement is used. An all-time event would require a different time-uniform radius and is not asserted here.
 
 For prefix confidence, the first `M_it` entries are literally the first `M_it` entries of the tape, so the simultaneous event gives coverage directly.
 
