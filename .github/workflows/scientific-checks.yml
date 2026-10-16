@@ -46,6 +46,10 @@ jobs:
           timeout --signal=TERM --kill-after=10s 900s \
             python -B reproduce_release.py raw-output \
             > raw-output/workflow.log 2>&1
+      - name: Check direct-Python two-clock schematic
+        run: |
+          python -m pip install -r requirements-figures.txt
+          python -B figures/check_figures.py
       - name: Retain raw results and failure logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

@@ -413,7 +413,16 @@ command/resource record is in `results/measurements/current-linux/`.
 ## Optional vector figures
 
 From the standalone artifact root, install the renderer dependencies if needed
-and generate the PDF figures:
+and generate the PDF figures. The two-clock schematic is consumed by the paper
+build and CI:
+
+```sh
+python -m pip install -r requirements-figures.txt
+python -B figures/draw_schematics.py
+python -B figures/check_figures.py
+```
+
+For the existing numerical width plot:
 
 ```sh
 python -m pip install "matplotlib==3.10.7"
