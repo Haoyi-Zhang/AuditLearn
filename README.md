@@ -425,7 +425,7 @@ python -B figures/check_figures.py
 For the existing numerical width plot:
 
 ```sh
-python -m pip install "matplotlib==3.10.7"
+python -m pip install -r requirements-figures.txt
 python -B scripts/plot_figures.py
 ```
 
